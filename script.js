@@ -257,6 +257,44 @@
     }
   })();
 
+  /* ═══ 4B. NAME LOGO — 3D EXTRUSION ═══
+     Clones the monogram SVG into a stack of translateZ layers to build
+     a real extruded 3D badge (lit darker toward the back), then tilts
+     the stack toward the pointer with a slow idle drift.          */
+  const Logo3D = (() => {
+    const stage = $('#logo3d');
+    const front = $('.logo3d__layer--front', stage || document);
+    if (!stage || !front) return;
+
+    const LAYERS = 12;
+    for (let i = 1; i <= LAYERS; i++) {
+      const c = front.cloneNode(true);
+      c.classList.remove('logo3d__layer--front');
+      c.classList.add('logo3d__layer--extrude');
+      c.style.setProperty('--i', i);
+      stage.insertBefore(c, stage.firstChild);
+    }
+
+    const T = { x: 0, y: 0 }, C = { x: 0, y: 0 };
+    if (!COARSE) {
+      addEventListener('pointermove', e => {
+        T.x = (e.clientX / innerWidth  - 0.5) * 2;
+        T.y = (e.clientY / innerHeight - 0.5) * 2;
+      }, { passive: true });
+      document.addEventListener('mouseleave', () => { T.x = 0; T.y = 0; });
+    }
+
+    const t0 = performance.now();
+    Util.loop(() => {
+      const t = (performance.now() - t0) / 1000;
+      C.x = lerp(C.x, T.x, 0.08);
+      C.y = lerp(C.y, T.y, 0.08);
+      const ry = C.x * 30 + Math.sin(t * 0.55) * 10;   // idle sway
+      const rx = -C.y * 24 + Math.cos(t * 0.45) * 6;
+      stage.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+    });
+  })();
+
   /* ═══ 5. SCROLL ENGINE ═══ */
   const Scroll = (() => {
     const nav       = $('#nav');

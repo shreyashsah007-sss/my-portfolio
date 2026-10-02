@@ -478,12 +478,13 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   align-items: center; justify-content: center; gap: 1.6rem;
   padding: 2rem 1.6rem;
   transform: translateZ(38px);
+  transform-style: preserve-3d;
 }
 
-/* avatar + gaze */
-.avatar { position: relative; display: grid; place-items: center; }
+/* avatar + 3D logo */
+.avatar { position: relative; display: grid; place-items: center; transform-style: preserve-3d; }
 .avatar__ring {
-  position: absolute; inset: -14px;
+  position: absolute; inset: -16px;
   border-radius: 50%;
   border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent);
   animation: spin 22s linear infinite;
@@ -492,23 +493,37 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 
 .avatar__face {
   position: relative;
-  width: clamp(112px, 30%, 140px);
+  width: clamp(124px, 34%, 160px);
   aspect-ratio: 1;
-  border-radius: 50%;
-  overflow: hidden;
   display: grid; place-items: center;
-  background:
-    radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
-    #0c0e14;
-  box-shadow: 0 16px 44px -14px var(--accent),
-              inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
-  transform: translate(calc(var(--gx, 0px) * 0.4), calc(var(--gy, 0px) * 0.4)) rotateY(calc(var(--gaze-y, 0deg) * 0.5)) rotateX(calc(var(--gaze-x, 0deg) * 0.5));
+  transform-style: preserve-3d;
+  transform: translate(calc(var(--gx, 0px) * 0.35), calc(var(--gy, 0px) * 0.35));
   transition: transform 0.4s var(--ease-out);
 }
+.logo3d {
+  position: relative;
+  width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.logo3d::before {
+  content: ''; position: absolute; inset: 6%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 32%, transparent), transparent 66%);
+  filter: blur(14px);
+  opacity: 0.85;
+}
+.logo3d__layer {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  transform: translateZ(calc(var(--i, 0) * -1.7px));
+}
+.logo3d__layer--front { transform: translateZ(0); }
+.logo3d__layer--extrude { filter: brightness(calc(1 - var(--i) * 0.06)) saturate(1.15); }
 .avatar__logo {
   width: 100%; height: 100%;
   display: block;
-  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 42%, transparent));
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 45%, transparent));
 }
 .logo-mono {
   font-family: var(--font-sans);

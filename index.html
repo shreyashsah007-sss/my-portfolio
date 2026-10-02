@@ -142,20 +142,24 @@
           <div class="avatar">
             <div class="avatar__ring"></div>
             <div class="avatar__face" id="avatarFace">
-              <svg class="avatar__logo" viewBox="0 0 120 120" role="img" aria-label="Shreyash Sah logo">
-                <defs>
-                  <linearGradient id="ssHeroGrad" x1="14" y1="14" x2="106" y2="106" gradientUnits="userSpaceOnUse">
-                    <stop offset="0"    style="stop-color:var(--accent)"/>
-                    <stop offset="0.52" style="stop-color:var(--accent-2)"/>
-                    <stop offset="1"    style="stop-color:var(--accent-3)"/>
-                  </linearGradient>
-                </defs>
-                <path class="logo-ring" d="M104.6 60 A44.6 44.6 0 1 1 60 15.4" fill="none"
-                      stroke="url(#ssHeroGrad)" stroke-width="2.4" stroke-linecap="round"/>
-                <circle class="logo-node" cx="104.6" cy="60"   r="3.5" style="fill:var(--accent-3)"/>
-                <circle class="logo-node" cx="60"    cy="15.4" r="3.5" style="fill:var(--accent)"/>
-                <text class="logo-mono" x="60" y="77" text-anchor="middle" fill="url(#ssHeroGrad)">SS</text>
-              </svg>
+              <div class="logo3d" id="logo3d">
+                <div class="logo3d__layer logo3d__layer--front">
+                  <svg class="avatar__logo" viewBox="0 0 120 120" role="img" aria-label="Shreyash Sah monogram">
+                    <defs>
+                      <linearGradient id="ssHeroGrad" x1="14" y1="14" x2="106" y2="106" gradientUnits="userSpaceOnUse">
+                        <stop offset="0"    style="stop-color:var(--accent)"/>
+                        <stop offset="0.52" style="stop-color:var(--accent-2)"/>
+                        <stop offset="1"    style="stop-color:var(--accent-3)"/>
+                      </linearGradient>
+                    </defs>
+                    <path class="logo-ring" d="M104.6 60 A44.6 44.6 0 1 1 60 15.4" fill="none"
+                          stroke="url(#ssHeroGrad)" stroke-width="2.4" stroke-linecap="round"/>
+                    <circle class="logo-node" cx="104.6" cy="60"   r="3.5" style="fill:var(--accent-3)"/>
+                    <circle class="logo-node" cx="60"    cy="15.4" r="3.5" style="fill:var(--accent)"/>
+                    <text class="logo-mono" x="60" y="77" text-anchor="middle" fill="url(#ssHeroGrad)">SS</text>
+                  </svg>
+                </div>
+              </div>
             </div>
             <span class="avatar__status" title="Available for collaboration"></span>
           </div>
