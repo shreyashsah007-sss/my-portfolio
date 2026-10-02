@@ -856,11 +856,56 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   background: #fff; border-radius: 50%;
   transition: opacity 0.3s;
 }
-.cursor.is-hover .cursor__ring { width: 60px; height: 60px; margin: -30px 0 0 -30px; border-color: rgba(255,255,255,0.95); }
+.cursor.is-hover .cursor__ring {
+  width: 60px; height: 60px; margin: -30px 0 0 -30px;
+  border-color: rgba(255,255,255,0.95); border-width: 2px;
+  background: color-mix(in srgb, #fff 12%, transparent);
+}
 .cursor.is-hover .cursor__dot { opacity: 0; }
 .cursor.is-down .cursor__ring { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+.cursor.is-text .cursor__ring {
+  width: 3px; height: 30px; margin: -15px 0 0 -1.5px;
+  border-radius: 2px; border-width: 1.5px;
+}
+.cursor.is-text .cursor__dot { opacity: 0; }
 .cursor.is-hidden { opacity: 0; }
 @media (hover: none), (pointer: coarse) { .cursor { display: none; } }
+
+/* ═══ CURSOR-REACTIVE BACKDROP ═══ */
+.cursor-glow {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  --mx: 50%; --my: 32%;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-io);
+  will-change: background;
+  background:
+    radial-gradient(540px circle at var(--mx) var(--my),
+      color-mix(in srgb, var(--accent) 18%, transparent), transparent 62%);
+}
+.cursor-glow.is-ready { opacity: 1; }
+.cursor-glow.is-hover {
+  background:
+    radial-gradient(720px circle at var(--mx) var(--my),
+      color-mix(in srgb, var(--accent-2) 26%, transparent), transparent 64%);
+}
+.cursor-glow::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(130% 120% at 50% 0%,
+    color-mix(in srgb, var(--accent-2) 12%, transparent), transparent 72%);
+  opacity: 0; transition: opacity 0.7s var(--ease-io);
+}
+.cursor-glow.is-hover::before { opacity: 1; }
+[data-theme="light"] .cursor-glow {
+  background:
+    radial-gradient(540px circle at var(--mx) var(--my),
+      color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%);
+}
+[data-theme="light"] .cursor-glow.is-hover {
+  background:
+    radial-gradient(720px circle at var(--mx) var(--my),
+      color-mix(in srgb, var(--accent-2) 30%, transparent), transparent 62%);
+}
+@media (hover: none), (pointer: coarse) { .cursor-glow { display: none; } }
 
 /* ═══ REVEAL ═══ */
 [data-reveal] {
@@ -1198,6 +1243,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 @media (prefers-reduced-motion: reduce) {
   .curtain { display: none !important; }
   .hero__embers, .cursor__trail, .confetti { display: none !important; }
+  .cursor-glow { display: none !important; }
   .split-w { opacity: 1 !important; transform: none !important; }
   .timeline__fill { transform: scaleY(1) !important; }
   .hero__copy, .hero__visual, .backdrop { transform: none !important; opacity: 1 !important; }

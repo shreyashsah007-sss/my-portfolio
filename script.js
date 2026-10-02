@@ -82,7 +82,14 @@
     const ring = $('.cursor__ring', el);
     let tx = innerWidth / 2, ty = innerHeight / 2, rx = tx, ry = ty, scale = 1;
 
-    addEventListener('pointermove', e => { tx = e.clientX; ty = e.clientY; }, { passive: true });
+    const glow = $('#cursorGlow');
+    const hoverIn  = () => { el.classList.add('is-hover');  glow?.classList.add('is-hover'); };
+    const hoverOut = () => { el.classList.remove('is-hover'); glow?.classList.remove('is-hover'); };
+
+    addEventListener('pointermove', e => {
+      tx = e.clientX; ty = e.clientY;
+      glow?.classList.add('is-ready');
+    }, { passive: true });
     addEventListener('pointerdown', () => el.classList.add('is-down'));
     addEventListener('pointerup',   () => el.classList.remove('is-down'));
     document.addEventListener('mouseleave', () => el.classList.add('is-hidden'));
@@ -102,15 +109,25 @@
       trail.push({ el: d, x: tx, y: ty });
     }
 
-    $$('[data-cursor="hover"], a, button, input, textarea, .card').forEach(n => {
-      n.addEventListener('pointerenter', () => el.classList.add('is-hover'));
-      n.addEventListener('pointerleave', () => el.classList.remove('is-hover'));
+    // interactive surfaces swell the cursor and shift the backdrop hue
+    $$('[data-cursor="hover"], a, button, .card').forEach(n => {
+      n.addEventListener('pointerenter', hoverIn);
+      n.addEventListener('pointerleave', hoverOut);
+    });
+    // text fields switch the cursor to an I-beam
+    $$('input, textarea').forEach(n => {
+      n.addEventListener('pointerenter', () => { el.classList.add('is-text'); glow?.classList.add('is-hover'); });
+      n.addEventListener('pointerleave', () => { el.classList.remove('is-text'); glow?.classList.remove('is-hover'); });
     });
 
     Util.loop(() => {
       rx = lerp(rx, tx, 0.19);
       ry = lerp(ry, ty, 0.19);
       ring.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
+      if (glow) {
+        glow.style.setProperty('--mx', `${rx.toFixed(1)}px`);
+        glow.style.setProperty('--my', `${ry.toFixed(1)}px`);
+      }
 
       let px = rx, py = ry;
       for (const t of trail) {
