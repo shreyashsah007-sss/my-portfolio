@@ -505,27 +505,6 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   width: 100%; height: 100%;
   object-fit: cover; object-position: center 32%;
   display: block;
-  filter: grayscale(0.85) contrast(1.08) brightness(0.92);
-}
-/* neon duotone wash over the photo */
-.avatar__face::after {
-  content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background: linear-gradient(145deg, var(--accent), var(--accent-2) 55%, var(--accent-3));
-  mix-blend-mode: color;
-  opacity: 0.6;
-  z-index: 1;
-  pointer-events: none;
-}
-/* vignette + faint scanlines */
-.avatar__face::before {
-  content: ''; position: absolute; inset: 0; border-radius: 50%;
-  background:
-    radial-gradient(circle at 50% 32%, transparent 34%,
-      color-mix(in srgb, var(--bg) 72%, transparent) 100%),
-    repeating-linear-gradient(to bottom,
-      rgba(255, 255, 255, 0.05) 0 1px, transparent 1px 3px);
-  z-index: 2;
-  pointer-events: none;
 }
 
 .avatar__status {
