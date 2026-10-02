@@ -82,11 +82,17 @@
     const el = $('#cursor');
     if (!el || COARSE || REDUCED) return;
     const ring = $('.cursor__ring', el);
-    let tx = innerWidth / 2, ty = innerHeight / 2, rx = tx, ry = ty, scale = 1;
-
+    const aura = $('#cursorAura');
     const glow = $('#cursorGlow');
-    const hoverIn  = () => { el.classList.add('is-hover');  glow?.classList.add('is-hover'); };
-    const hoverOut = () => { el.classList.remove('is-hover'); glow?.classList.remove('is-hover'); };
+    document.documentElement.classList.add('has-cursor');
+
+    let tx = innerWidth / 2, ty = innerHeight / 2;
+    let rx = tx, ry = ty;          // ring (light lag)
+    let ax = tx, ay = ty;          // aura (heavy lag)
+    let lx = rx, ly = ry;          // previous ring position, for velocity
+
+    const hoverIn  = () => { el.classList.add('is-hover');  aura?.classList.add('is-hover');  glow?.classList.add('is-hover'); };
+    const hoverOut = () => { el.classList.remove('is-hover'); aura?.classList.remove('is-hover'); glow?.classList.remove('is-hover'); };
 
     addEventListener('pointermove', e => {
       tx = e.clientX; ty = e.clientY;
@@ -94,19 +100,16 @@
     }, { passive: true });
     addEventListener('pointerdown', () => el.classList.add('is-down'));
     addEventListener('pointerup',   () => el.classList.remove('is-down'));
-    document.addEventListener('mouseleave', () => el.classList.add('is-hidden'));
-    document.addEventListener('mouseenter', () => el.classList.remove('is-hidden'));
+    document.addEventListener('mouseleave', () => { el.classList.add('is-hidden'); aura?.classList.add('is-hidden'); });
+    document.addEventListener('mouseenter', () => { el.classList.remove('is-hidden'); aura?.classList.remove('is-hidden'); });
 
     // comet trail — each dot chases the one before it
-    const TRAIL = 5;
+    const TRAIL = 6;
     const trail = [];
     for (let i = 0; i < TRAIL; i++) {
       const d = document.createElement('i');
       d.className = 'cursor__trail';
-      const size = 7 - i;
-      d.style.width = d.style.height = `${size}px`;
-      d.style.margin = `${-size / 2}px 0 0 ${-size / 2}px`;
-      d.style.opacity = String(Math.max(0.12, 0.5 - i * 0.08));
+      d.style.setProperty('--i', i);
       el.appendChild(d);
       trail.push({ el: d, x: tx, y: ty });
     }
@@ -123,9 +126,18 @@
     });
 
     Util.loop(() => {
-      rx = lerp(rx, tx, 0.19);
-      ry = lerp(ry, ty, 0.19);
-      ring.style.transform = `translate3d(${rx}px, ${ry}px, 0)`;
+      rx = lerp(rx, tx, 0.2);
+      ry = lerp(ry, ty, 0.2);
+      ax = lerp(ax, tx, 0.11);
+      ay = lerp(ay, ty, 0.11);
+
+      // stretch the ring a touch with speed so fast moves feel alive
+      const speed = Math.hypot(rx - lx, ry - ly);
+      lx = rx; ly = ry;
+      const stretch = 1 + Math.min(speed * 0.008, 0.22);
+
+      ring.style.transform = `translate3d(${rx.toFixed(2)}px, ${ry.toFixed(2)}px, 0) scale(${stretch.toFixed(3)})`;
+      if (aura) aura.style.transform = `translate3d(${ax.toFixed(2)}px, ${ay.toFixed(2)}px, 0)`;
       if (glow) {
         glow.style.setProperty('--mx', `${rx.toFixed(1)}px`);
         glow.style.setProperty('--my', `${ry.toFixed(1)}px`);
@@ -133,8 +145,8 @@
 
       let px = rx, py = ry;
       for (const t of trail) {
-        t.x = lerp(t.x, px, 0.32);
-        t.y = lerp(t.y, py, 0.32);
+        t.x = lerp(t.x, px, 0.34);
+        t.y = lerp(t.y, py, 0.34);
         t.el.style.transform = `translate3d(${t.x.toFixed(2)}px, ${t.y.toFixed(2)}px, 0)`;
         px = t.x; py = t.y;
       }

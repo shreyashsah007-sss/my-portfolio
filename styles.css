@@ -844,32 +844,75 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 .to-top:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
 /* ═══ CUSTOM CURSOR ═══ */
-.cursor { position: fixed; top: 0; left: 0; z-index: 9998; pointer-events: none; mix-blend-mode: difference; }
+.cursor { position: fixed; top: 0; left: 0; z-index: 9999; pointer-events: none; mix-blend-mode: difference; }
 .cursor__ring {
-  position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px;
-  border: 1.5px solid rgba(255, 255, 255, 0.75); border-radius: 50%;
-  transition: width 0.32s var(--ease-out), height 0.32s var(--ease-out),
-              margin 0.32s var(--ease-out), border-color 0.32s, opacity 0.3s;
+  position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  border: 1.5px solid rgba(255, 255, 255, 0.7); border-radius: 50%;
+  box-shadow: 0 0 0 0 color-mix(in srgb, #fff 16%, transparent),
+              inset 0 0 8px color-mix(in srgb, #fff 12%, transparent);
+  transition: width 0.34s var(--ease-out), height 0.34s var(--ease-out),
+              margin 0.34s var(--ease-out), border-color 0.34s,
+              background 0.34s, box-shadow 0.34s, opacity 0.3s;
 }
 .cursor__dot {
   position: absolute; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px;
   background: #fff; border-radius: 50%;
-  transition: opacity 0.3s;
+  transition: opacity 0.3s, scale 0.32s var(--ease-out);
 }
 .cursor.is-hover .cursor__ring {
-  width: 60px; height: 60px; margin: -30px 0 0 -30px;
-  border-color: rgba(255,255,255,0.95); border-width: 2px;
-  background: color-mix(in srgb, #fff 12%, transparent);
+  width: 58px; height: 58px; margin: -29px 0 0 -29px;
+  border-color: rgba(255, 255, 255, 0.95); border-width: 1.5px;
+  background: color-mix(in srgb, #fff 9%, transparent);
+  box-shadow: 0 0 0 6px color-mix(in srgb, #fff 7%, transparent),
+              inset 0 0 16px color-mix(in srgb, #fff 15%, transparent);
 }
-.cursor.is-hover .cursor__dot { opacity: 0; }
-.cursor.is-down .cursor__ring { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+.cursor.is-hover .cursor__dot { scale: 1.7; }
+.cursor.is-down .cursor__ring { width: 20px; height: 20px; margin: -10px 0 0 -10px; }
+.cursor.is-down .cursor__dot { scale: 0.55; }
 .cursor.is-text .cursor__ring {
-  width: 3px; height: 30px; margin: -15px 0 0 -1.5px;
-  border-radius: 2px; border-width: 1.5px;
+  width: 3px; height: 32px; margin: -16px 0 0 -1.5px;
+  border-radius: 2px; border-width: 1.5px; background: transparent; box-shadow: none;
 }
 .cursor.is-text .cursor__dot { opacity: 0; }
 .cursor.is-hidden { opacity: 0; }
-@media (hover: none), (pointer: coarse) { .cursor { display: none; } }
+
+/* comet trail — sized + faded by its index */
+.cursor__trail {
+  position: absolute; left: 0; top: 0; border-radius: 50%;
+  width: calc(9px - var(--i) * 1.1px);
+  height: calc(9px - var(--i) * 1.1px);
+  margin-top: calc((9px - var(--i) * 1.1px) / -2);
+  margin-left: calc((9px - var(--i) * 1.1px) / -2);
+  background: var(--accent);
+  opacity: calc(0.5 - var(--i) * 0.075);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 55%, transparent);
+  will-change: transform;
+}
+.cursor.is-hover .cursor__trail { background: var(--accent-2); }
+
+/* soft accent aura that trails behind the pointer */
+.cursor-aura {
+  position: fixed; top: 0; left: 0; z-index: 9998; pointer-events: none;
+  width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent), transparent 70%);
+  opacity: 0.28; filter: blur(24px);
+  transition: opacity 0.45s var(--ease-io), width 0.45s var(--ease-out),
+              height 0.45s var(--ease-out), margin 0.45s var(--ease-out),
+              background 0.45s var(--ease-io);
+  will-change: transform;
+}
+.cursor-aura.is-hover {
+  width: 200px; height: 200px; margin: -100px 0 0 -100px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 55%, transparent), transparent 70%);
+  opacity: 0.6;
+}
+.cursor-aura.is-hidden { opacity: 0; }
+@media (hover: none), (pointer: coarse) { .cursor, .cursor-aura { display: none; } }
+
+/* only swap out the native pointer on real pointer devices, and only once JS is live */
+@media (hover: hover) and (pointer: fine) {
+  html.has-cursor, html.has-cursor * { cursor: none !important; }
+}
 
 /* ═══ CURSOR-REACTIVE BACKDROP ═══ */
 .cursor-glow {
@@ -1172,12 +1215,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   100% { transform: translate3d(var(--dx, 0), 102vh, 0) rotate(var(--rot, 540deg)); opacity: 0; }
 }
 
-/* ── H. CURSOR TRAIL ── */
-.cursor__trail {
-  position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px;
-  border-radius: 50%; background: var(--accent); opacity: 0.5;
-  will-change: transform;
-}
+/* ── H. CURSOR TRAIL (base styling lives in the CUSTOM CURSOR section) ── */
 
 /* ── I. SCROLL PARALLAX + VIEW TRANSITIONS ── */
 .backdrop { transform: translate3d(0, calc(var(--par, 0) * -1px), 0); will-change: transform; }
