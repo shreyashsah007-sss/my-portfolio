@@ -78,8 +78,16 @@
   <div class="nav__inner">
     <a href="#home" class="brand" data-cursor="hover">
       <span class="brand__mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>
+        <svg viewBox="0 0 120 120" fill="none">
+          <defs>
+            <linearGradient id="ssNavGrad" x1="14" y1="14" x2="106" y2="106" gradientUnits="userSpaceOnUse">
+              <stop offset="0"    style="stop-color:var(--accent)"/>
+              <stop offset="0.52" style="stop-color:var(--accent-2)"/>
+              <stop offset="1"    style="stop-color:var(--accent-3)"/>
+            </linearGradient>
+          </defs>
+          <path d="M104.6 60 A44.6 44.6 0 1 1 60 15.4" stroke="url(#ssNavGrad)" stroke-width="6" stroke-linecap="round"/>
+          <text class="logo-mono" x="60" y="80" text-anchor="middle" fill="url(#ssNavGrad)">SS</text>
         </svg>
       </span>
       <span class="brand__text">Shreyash<em>.</em></span>
@@ -134,8 +142,20 @@
           <div class="avatar">
             <div class="avatar__ring"></div>
             <div class="avatar__face" id="avatarFace">
-              <img class="avatar__photo" src="assets/shreyash.jpg" alt="Portrait of Shreyash Sah" draggable="false" decoding="async">
-              <canvas class="avatar__gl" id="avatarGL" width="512" height="512" aria-hidden="true"></canvas>
+              <svg class="avatar__logo" viewBox="0 0 120 120" role="img" aria-label="Shreyash Sah logo">
+                <defs>
+                  <linearGradient id="ssHeroGrad" x1="14" y1="14" x2="106" y2="106" gradientUnits="userSpaceOnUse">
+                    <stop offset="0"    style="stop-color:var(--accent)"/>
+                    <stop offset="0.52" style="stop-color:var(--accent-2)"/>
+                    <stop offset="1"    style="stop-color:var(--accent-3)"/>
+                  </linearGradient>
+                </defs>
+                <path class="logo-ring" d="M104.6 60 A44.6 44.6 0 1 1 60 15.4" fill="none"
+                      stroke="url(#ssHeroGrad)" stroke-width="2.4" stroke-linecap="round"/>
+                <circle class="logo-node" cx="104.6" cy="60"   r="3.5" style="fill:var(--accent-3)"/>
+                <circle class="logo-node" cx="60"    cy="15.4" r="3.5" style="fill:var(--accent)"/>
+                <text class="logo-mono" x="60" y="77" text-anchor="middle" fill="url(#ssHeroGrad)">SS</text>
+              </svg>
             </div>
             <span class="avatar__status" title="Available for collaboration"></span>
           </div>

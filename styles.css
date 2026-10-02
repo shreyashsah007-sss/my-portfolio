@@ -214,13 +214,16 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 .brand { display: flex; align-items: center; gap: 0.6rem; font-weight: 800; letter-spacing: -0.02em; }
 .brand__mark {
   width: 36px; height: 36px; display: grid; place-items: center;
-  border-radius: 10px; color: var(--bg);
-  background: var(--grad);
-  box-shadow: 0 6px 18px -6px var(--accent);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+    #0c0e14;
+  box-shadow: 0 6px 18px -6px var(--accent),
+              inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
   transition: transform 0.45s var(--ease-spring);
 }
 .brand:hover .brand__mark { transform: rotate(-12deg) scale(1.08); }
-.brand__mark svg { width: 19px; height: 19px; }
+.brand__mark svg { width: 26px; height: 26px; display: block; }
 .brand__text { font-size: 1.12rem; }
 .brand__text em { color: var(--accent); font-style: normal; }
 
@@ -494,25 +497,37 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   border-radius: 50%;
   overflow: hidden;
   display: grid; place-items: center;
-  background: var(--grad);
+  background:
+    radial-gradient(circle at 50% 34%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+    #0c0e14;
   box-shadow: 0 16px 44px -14px var(--accent),
-              inset 0 0 0 2px color-mix(in srgb, #fff 20%, transparent);
+              inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent);
   transform: translate(calc(var(--gx, 0px) * 0.4), calc(var(--gy, 0px) * 0.4)) rotateY(calc(var(--gaze-y, 0deg) * 0.5)) rotateX(calc(var(--gaze-x, 0deg) * 0.5));
   transition: transform 0.4s var(--ease-out);
 }
-.avatar__photo {
-  position: absolute; inset: 0;
-  width: 100%; height: 100%;
-  object-fit: cover; object-position: center 32%;
-  display: block;
-}
-.avatar__gl {
-  position: absolute; inset: 0;
+.avatar__logo {
   width: 100%; height: 100%;
   display: block;
-  border-radius: 50%;
-  pointer-events: none;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 42%, transparent));
 }
+.logo-mono {
+  font-family: var(--font-sans);
+  font-weight: 900;
+  font-size: 58px;
+  letter-spacing: -4px;
+}
+.avatar__logo .logo-ring {
+  stroke-dasharray: 320;
+  stroke-dashoffset: 320;
+  animation: logo-draw 1.4s var(--ease-out) 0.15s forwards;
+}
+.avatar__logo .logo-node {
+  opacity: 0;
+  transform-box: fill-box; transform-origin: center;
+  animation: logo-pop 0.5s var(--ease-spring) 1.1s forwards;
+}
+@keyframes logo-draw { to { stroke-dashoffset: 0; } }
+@keyframes logo-pop  { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1); } }
 
 .avatar__status {
   position: absolute; right: 6px; bottom: 6px;
