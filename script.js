@@ -257,6 +257,152 @@
     }
   })();
 
+  /* ═══ 4B. HERO PHOTO — WEBGL DEPTH POP-OUT ═══
+     Approximates a 3D relief from the flat profile photo: a luminance
+     + radial depth field drives a parallax displacement plus a soft
+     pointer-lit shading, so the subject appears to lift off its
+     background as the cursor moves. Degrades to the plain <img> when
+     WebGL is unavailable.                                        */
+  const HeroPhoto3D = (() => {
+    const face   = $('#avatarFace');
+    const img    = $('.avatar__photo');
+    const canvas = $('#avatarGL');
+    if (!face || !img || !canvas) return;
+
+    let gl = null;
+    try {
+      gl = canvas.getContext('webgl', { antialias: true, alpha: true, premultipliedAlpha: false });
+    } catch (e) { gl = null; }
+    if (!gl) return;
+
+    const VERT = `
+      attribute vec2 aPos;
+      varying vec2 vUv;
+      void main() {
+        vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5);
+        gl_Position = vec4(aPos, 0.0, 1.0);
+      }`;
+
+    const FRAG = `
+      precision highp float;
+      varying vec2 vUv;
+      uniform sampler2D uTex;
+      uniform vec2  uPointer;
+      uniform float uStrength;
+      uniform vec2  uTexel;
+
+      vec3 tex(vec2 uv) { return texture2D(uTex, clamp(uv, vec2(0.0), vec2(1.0))).rgb; }
+
+      float depth(vec2 uv) {
+        vec3  c   = tex(uv);
+        float lum = dot(c, vec3(0.299, 0.587, 0.114));
+        vec2  p   = (uv - vec2(0.5, 0.44)) * vec2(1.0, 1.12);
+        float rad = 1.0 - clamp(length(p) * 1.42, 0.0, 1.0);
+        return clamp(rad * 0.86 + lum * 0.14, 0.0, 1.0);
+      }
+
+      void main() {
+        float d = depth(vUv) * 0.36
+                + depth(vUv + uTexel * vec2( 3.0, 0.0)) * 0.16
+                + depth(vUv + uTexel * vec2(-3.0, 0.0)) * 0.16
+                + depth(vUv + uTexel * vec2( 0.0, 3.0)) * 0.16
+                + depth(vUv + uTexel * vec2( 0.0,-3.0)) * 0.16;
+
+        vec2 uv  = vUv + uPointer * (d - 0.5) * uStrength;
+        vec3 col = tex(uv);
+
+        float dx = depth(vUv + vec2(uTexel.x * 2.0, 0.0)) - depth(vUv - vec2(uTexel.x * 2.0, 0.0));
+        float dy = depth(vUv + vec2(0.0, uTexel.y * 2.0)) - depth(vUv - vec2(0.0, uTexel.y * 2.0));
+        vec3  n  = normalize(vec3(-dx * 6.0, -dy * 6.0, 1.0));
+        vec3  L  = normalize(vec3(uPointer.x * 0.7, -uPointer.y * 0.7, 1.0));
+        col += (max(dot(n, L), 0.0) - 0.5) * 0.22;
+        col *= 0.94 + d * 0.10;
+
+        gl_FragColor = vec4(col, 1.0);
+      }`;
+
+    const compile = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { gl.deleteShader(s); return null; }
+      return s;
+    };
+
+    const vs = compile(gl.VERTEX_SHADER, VERT);
+    const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+    if (!vs || !fs) return;
+
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    gl.useProgram(prog);
+
+    // full-screen quad (two triangles)
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+    const aPos = gl.getAttribLocation(prog, 'aPos');
+    gl.enableVertexAttribArray(aPos);
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+
+    const uPointer  = gl.getUniformLocation(prog, 'uPointer');
+    const uStrength = gl.getUniformLocation(prog, 'uStrength');
+    const uTexel    = gl.getUniformLocation(prog, 'uTexel');
+    gl.uniform1f(uStrength, 0.075);
+    gl.uniform2f(uTexel, 1 / canvas.width, 1 / canvas.height);
+
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    let ready = false;
+    const upload = () => {
+      try {
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+        ready = true;
+        face.classList.add('is-gl');
+      } catch (e) { ready = false; }
+    };
+    if (img.complete && img.naturalWidth) upload();
+    else img.addEventListener('load', upload, { once: true });
+
+    canvas.addEventListener('webglcontextlost', e => e.preventDefault());
+
+    // pointer → smoothed parallax target
+    const P = { x: 0, y: 0 }, S = { x: 0, y: 0 };
+    if (!COARSE) {
+      addEventListener('pointermove', e => {
+        P.x = (e.clientX / innerWidth  - 0.5) * 2;
+        P.y = (e.clientY / innerHeight - 0.5) * 2;
+      }, { passive: true });
+      document.addEventListener('mouseleave', () => { P.x = 0; P.y = 0; });
+    }
+
+    gl.clearColor(0, 0, 0, 0);
+    const t0 = performance.now();
+
+    Util.loop(() => {
+      const t  = (performance.now() - t0) / 1000;
+      const ix = Math.sin(t * 0.5) * 0.18 + Math.sin(t * 0.23) * 0.08;  // idle breathing
+      const iy = Math.cos(t * 0.42) * 0.14;
+      S.x = lerp(S.x, P.x + ix, 0.06);
+      S.y = lerp(S.y, P.y + iy, 0.06);
+      gl.uniform2f(uPointer, S.x, S.y);
+      if (ready) {
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+    });
+  })();
+
   /* ═══ 5. SCROLL ENGINE ═══ */
   const Scroll = (() => {
     const nav       = $('#nav');

@@ -497,7 +497,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   background: var(--grad);
   box-shadow: 0 16px 44px -14px var(--accent),
               inset 0 0 0 2px color-mix(in srgb, #fff 20%, transparent);
-  transform: translate(var(--gx, 0px), var(--gy, 0px)) rotateY(var(--gaze-y, 0deg)) rotateX(var(--gaze-x, 0deg));
+  transform: translate(calc(var(--gx, 0px) * 0.4), calc(var(--gy, 0px) * 0.4)) rotateY(calc(var(--gaze-y, 0deg) * 0.5)) rotateX(calc(var(--gaze-x, 0deg) * 0.5));
   transition: transform 0.4s var(--ease-out);
 }
 .avatar__photo {
@@ -505,6 +505,13 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   width: 100%; height: 100%;
   object-fit: cover; object-position: center 32%;
   display: block;
+}
+.avatar__gl {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  display: block;
+  border-radius: 50%;
+  pointer-events: none;
 }
 
 .avatar__status {
