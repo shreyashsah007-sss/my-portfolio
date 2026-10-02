@@ -15,7 +15,9 @@
   const $$ = (s, c = document) => [...c.querySelectorAll(s)];
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
   const lerp  = (a, b, t) => a + (b - a) * t;
-  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Motion is force-enabled site-wide (the OS reduced-motion preference is
+  // intentionally ignored). Kept as a single switch for future tuning.
+  const REDUCED = false;
   const COARSE  = matchMedia('(pointer: coarse)').matches;
 
   /* ═══ 1. UTILS ═══ */

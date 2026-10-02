@@ -966,16 +966,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 }
 
 /* ═══ MOTION / PRINT ═══ */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
-  [data-reveal] { opacity: 1 !important; transform: none !important; }
-  .bar__bar i { width: var(--w) !important; }
-}
+/* Reduced-motion fallbacks disabled — motion is always on by design. */
 
 @media print {
   .backdrop, .cursor, .nav, .to-top, .scroll-progress, .hero__scroll, .marquee, .form { display: none !important; }
@@ -1240,15 +1231,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 }
 
 /* reduced motion: neutralise the animation layer */
-@media (prefers-reduced-motion: reduce) {
-  .curtain { display: none !important; }
-  .hero__embers, .cursor__trail, .confetti { display: none !important; }
-  .cursor-glow { display: none !important; }
-  .split-w { opacity: 1 !important; transform: none !important; }
-  .timeline__fill { transform: scaleY(1) !important; }
-  .hero__copy, .hero__visual, .backdrop { transform: none !important; opacity: 1 !important; }
-  .nav { animation: none !important; }
-}
+/* Reduced-motion fallbacks disabled — motion is always on by design. */
 
 /* ═══════════════════════════════════════════════════════════════
    SCROLL FX LAYER
@@ -1364,12 +1347,5 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 .aurora { filter: blur(90px) hue-rotate(var(--hue, 0deg)); }
 .hero__visual { scale: var(--heroScale, 1); }
 
-@media (prefers-reduced-motion: reduce) {
-  [data-skew] { transform: none !important; }
-  .scrub-w { opacity: 1 !important; }
-  .grid--cards .card { scale: none; rotate: none; translate: none; }
-  .hero__visual { scale: none; }
-  .aurora { filter: blur(90px) !important; }
-  .rail { animation: none !important; }
-}
+/* Reduced-motion fallbacks disabled — motion is always on by design. */
 
