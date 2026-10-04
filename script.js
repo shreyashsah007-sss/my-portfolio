@@ -88,9 +88,8 @@
     document.documentElement.classList.add('has-cursor');
 
     let tx = innerWidth / 2, ty = innerHeight / 2;
-    let rx = tx, ry = ty;          // ring  (light lag)
-    let dx = tx, dy = ty;          // dot   (tight follow)
-    let ax = tx, ay = ty;          // aura  (heavy lag)
+    let rx = tx, ry = ty;          // ring  (1 frame of trail)
+    let ax = tx, ay = ty;          // aura  (soft trailing glow)
     let lx = rx, ly = ry;          // previous ring position, for velocity
 
     const hoverIn  = () => { el.classList.add('is-hover');  aura?.classList.add('is-hover');  glow?.classList.add('is-hover'); };
@@ -98,6 +97,9 @@
 
     addEventListener('pointermove', e => {
       tx = e.clientX; ty = e.clientY;
+      // commit the precise dot inside the input event itself — waiting for the
+      // next rAF would add up to a full frame of visible input lag
+      if (dot) dot.style.transform = `translate3d(${tx}px, ${ty}px, 0)`;
       glow?.classList.add('is-ready');
     }, { passive: true });
     addEventListener('pointerdown', () => el.classList.add('is-down'));
@@ -135,25 +137,25 @@
       const dt = Math.min((now - prev) / 1000, 0.05);
       prev = now;
 
-      const kRing  = 1 - Math.exp(-16 * dt);
-      const kDot   = 1 - Math.exp(-38 * dt);
-      const kAura  = 1 - Math.exp(-9  * dt);
-      const kTrail = 1 - Math.exp(-22 * dt);
+      // Stiffness is tuned so nothing reads as input lag: the dot is pinned
+      // 1:1 to the pointer, the ring closes ~95% of the gap within a couple
+      // of frames, and only the soft aura is allowed to drift behind.
+      const kRing  = 1 - Math.exp(-60 * dt);
+      const kTrail = 1 - Math.exp(-34 * dt);
+      const kAura  = 1 - Math.exp(-14 * dt);
 
       rx = lerp(rx, tx, kRing);
       ry = lerp(ry, ty, kRing);
-      dx = lerp(dx, tx, kDot);
-      dy = lerp(dy, ty, kDot);
       ax = lerp(ax, tx, kAura);
       ay = lerp(ay, ty, kAura);
 
       // stretch the ring a touch with speed so fast moves feel alive
       const speed = Math.hypot(rx - lx, ry - ly);
       lx = rx; ly = ry;
-      const stretch = 1 + Math.min(speed * 0.008, 0.22);
+      const stretch = 1 + Math.min(speed * 0.006, 0.14);
 
       ring.style.transform = `translate3d(${rx.toFixed(2)}px, ${ry.toFixed(2)}px, 0) scale(${stretch.toFixed(3)})`;
-      if (dot)  dot.style.transform  = `translate3d(${dx.toFixed(2)}px, ${dy.toFixed(2)}px, 0)`;
+      if (dot)  dot.style.transform  = `translate3d(${tx.toFixed(2)}px, ${ty.toFixed(2)}px, 0)`;
       if (aura) aura.style.transform = `translate3d(${ax.toFixed(2)}px, ${ay.toFixed(2)}px, 0)`;
       if (glow) {
         glow.style.setProperty('--gx', `${rx.toFixed(1)}px`);
@@ -312,8 +314,86 @@
       document.addEventListener('mouseleave', () => { P.x = 0; P.y = 0; });
     }
 
+    /* ── gaze: eyes that track the pointer ──────────────────────────
+       The source clip is a fixed idle loop, so the eyes are painted over
+       each frame. Geometry is URL-tunable so it can be dialled in without
+       touching any code:
+         ?eyes=0              turn the overlay off
+         ?ecx=212&ecy=143     eye-line centre, in 420x420 frame space
+         ?esep=46             distance between the two eyes
+         ?erx=14&ery=9        eye half-width / half-height
+         ?eiris=0.46          how far the iris may travel, as a fraction
+         ?eop=0.92            overlay opacity
+         ?eyedebug=1          outline the sockets for alignment           */
+    const qp   = new URLSearchParams(location.search);
+    const qnum = (k, d) => { const v = parseFloat(qp.get(k)); return Number.isFinite(v) ? v : d; };
+    const EYE = {
+      on:    qp.get('eyes') !== '0',
+      cx:    qnum('ecx', 212),
+      cy:    qnum('ecy', 143),
+      sep:   qnum('esep', 46),
+      rx:    qnum('erx', 14),
+      ry:    qnum('ery', 9),
+      iris:  qnum('eiris', 0.46),
+      op:    qnum('eop', 0.92),
+      debug: qp.get('eyedebug') === '1',
+    };
+
+    function drawEyes(gx, gy) {
+      const half = EYE.sep / 2;
+      const ir   = Math.min(EYE.rx, EYE.ry) * 0.94;
+
+      for (const s of [-1, 1]) {
+        const ex = EYE.cx + s * half;
+        const ey = EYE.cy;
+        const ix = ex + gx * EYE.rx * EYE.iris;
+        const iy = ey + gy * EYE.ry * EYE.iris;
+
+        ctx.save();
+        ctx.globalAlpha = EYE.op;
+
+        // socket — grounds the eye and covers the render's own eye beneath it
+        ctx.beginPath();
+        ctx.ellipse(ex, ey, EYE.rx, EYE.ry, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(22, 15, 13, 0.93)';
+        ctx.fill();
+
+        // clip to the opening so nothing spills onto the cheek
+        ctx.beginPath();
+        ctx.ellipse(ex, ey, EYE.rx * 0.95, EYE.ry * 0.95, 0, 0, Math.PI * 2);
+        ctx.clip();
+
+        // iris
+        const grd = ctx.createRadialGradient(ix, iy, ir * 0.12, ix, iy, ir);
+        grd.addColorStop(0,    'rgba(64, 42, 32, 1)');
+        grd.addColorStop(0.55, 'rgba(28, 17, 14, 1)');
+        grd.addColorStop(1,    'rgba(8, 5, 5, 1)');
+        ctx.fillStyle = grd;
+        ctx.fillRect(ex - EYE.rx, ey - EYE.ry, EYE.rx * 2, EYE.ry * 2);
+
+        // catchlight — the thing that makes a CG eye read as alive
+        ctx.beginPath();
+        ctx.ellipse(ix - ir * 0.32, iy - ir * 0.36, ir * 0.25, ir * 0.2, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255, 252, 246, 0.92)';
+        ctx.fill();
+
+        ctx.restore();
+
+        if (EYE.debug) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(110, 168, 255, 0.95)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(ex, ey, EYE.rx, EYE.ry, 0, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+
     const t0 = performance.now();
     let prev = t0;
+    const G = { x: 0, y: 0 };
     Util.loop(() => {
       const now = performance.now();
       const dt = Math.min((now - prev) / 1000, 0.05);
@@ -327,17 +407,25 @@
       canvas.style.setProperty('--cx', `${(PC.x * -8).toFixed(2)}px`);
       canvas.style.setProperty('--cy', `${(PC.y * -8).toFixed(2)}px`);
 
+      // the gaze is quicker than the body parallax so the eyes feel locked on
+      const kg = 1 - Math.exp(-16 * dt);
+      G.x = lerp(G.x, P.x, kg);
+      G.y = lerp(G.y, P.y, kg);
+
       const cycle = COUNT / FPS;                  // seconds, one direction
       const phase = (t % (cycle * 2)) / cycle;    // 0 … 1 … 0
       const fwd   = phase <= 1 ? phase : 2 - phase;
       const idx   = Math.min(COUNT - 1, Math.floor(fwd * (COUNT - 1)));
 
-      if (idx === lastIdx) return;
+      // with eyes on we repaint every frame, since the gaze moves even
+      // while the source frame is held
+      if (idx === lastIdx && !EYE.on) return;
       const img = IMGS[idx];
       if (img && img.complete && img.naturalWidth) {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         lastIdx = idx;
       }
+      if (EYE.on) drawEyes(G.x, G.y);
     });
   })();
 
@@ -371,8 +459,17 @@
       navLinks.forEach(a => a.classList.toggle('is-current', a.getAttribute('href') === `#${current}`));
     }
 
-    addEventListener('scroll', onScroll, { passive: true });
-    addEventListener('resize', onScroll, { passive: true });
+    // coalesce to one read per frame — scroll fires far faster than paint and
+    // each pass reads offsetTop for every section (a forced layout)
+    let ticking = false;
+    const queue = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => { ticking = false; onScroll(); });
+    };
+
+    addEventListener('scroll', queue, { passive: true });
+    addEventListener('resize', queue, { passive: true });
     onScroll();
 
     toTop?.addEventListener('click', () =>
@@ -827,10 +924,20 @@
 
     let prevY = scrollY;
     let skew  = 0;
+    let lastRunY = -1;
+    let lastRunVh = -1;
 
     Util.loop(() => {
       const y  = scrollY;
       const vh = innerHeight;
+
+      // Nothing in this module is time-based — every value is a pure function
+      // of the scroll offset. Running the read/write cycle while the page is
+      // still forces a synchronous reflow on *every* animation frame, which
+      // starves the cursor + hero loops. Bail out when nothing moved.
+      if (y === lastRunY && vh === lastRunVh) return;
+      lastRunY = y;
+      lastRunVh = vh;
 
       // ── read phase ──
       const max = document.documentElement.scrollHeight - vh;
@@ -854,7 +961,10 @@
 
       syncRail(y, vh, max);
 
-      backdrop?.style.setProperty('--hue', `${(clamp(y / (max || 1), 0, 1) * 46).toFixed(2)}deg`);
+      // palette drift as you scroll — driven as opacity weights on the three
+      // pre-blurred aurora blobs, because hue-rotating a blurred layer forces
+      // a full re-raster of it on every frame
+      backdrop?.style.setProperty('--tint', clamp(y / (max || 1), 0, 1).toFixed(4));
 
       if (heroVis) {
         const hp = clamp(y / vh, 0, 1);

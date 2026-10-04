@@ -146,27 +146,30 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 .aurora {
   position: absolute;
   border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.5;
-  will-change: transform;
+  /* no filter: the gradients below are already soft, and a blur/hue-rotate on
+     these huge layers forces a full re-raster whenever the value changes */
+  opacity: calc(var(--o, 0.5) - var(--tint, 0) * var(--d, 0));
+  will-change: transform, opacity;
 }
 .aurora--1 {
   width: 46vw; height: 46vw; top: -14vw; left: -10vw;
-  background: radial-gradient(circle, var(--accent), transparent 66%);
+  --o: 0.52; --d: 0.34;
+  background: radial-gradient(circle, var(--accent), transparent 70%);
   animation: drift1 26s var(--ease-io) infinite alternate;
 }
 .aurora--2 {
   width: 40vw; height: 40vw; bottom: -14vw; right: -8vw;
-  background: radial-gradient(circle, var(--accent-2), transparent 66%);
+  --o: 0.24; --d: -0.18;
+  background: radial-gradient(circle, var(--accent-2), transparent 70%);
   animation: drift2 32s var(--ease-io) infinite alternate;
 }
 .aurora--3 {
   width: 32vw; height: 32vw; top: 42%; left: 56%;
-  background: radial-gradient(circle, var(--accent-3), transparent 68%);
-  opacity: 0.28;
+  --o: 0.30; --d: -0.16;
+  background: radial-gradient(circle, var(--accent-3), transparent 72%);
   animation: drift3 38s var(--ease-io) infinite alternate;
 }
-[data-theme="light"] .aurora { opacity: 0.30; }
+[data-theme="light"] .aurora { --o: 0.20; }
 
 @keyframes drift1 { to { transform: translate3d(9vw, 7vh, 0) scale(1.16); } }
 @keyframes drift2 { to { transform: translate3d(-11vw, -8vh, 0) scale(1.22); } }
@@ -467,9 +470,10 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   position: absolute; left: 0; right: 0; height: 32%;
   background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent) 14%, transparent), transparent);
   animation: scan 5.5s var(--ease-io) infinite;
+  will-change: transform;
   pointer-events: none; z-index: 2;
 }
-@keyframes scan { 0% { top: -32%; } 100% { top: 100%; } }
+@keyframes scan { 0% { transform: translateY(-100%); } 100% { transform: translateY(312%); } }
 
 .card-3d__content {
   position: absolute; inset: 0;
@@ -517,9 +521,10 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   mix-blend-mode: screen;
 }
 .char__scan {
-  position: absolute; left: 0; right: 0; height: 34%;
+  position: absolute; left: 0; right: 0; height: 32%;
   background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--accent) 22%, transparent), transparent);
   animation: scan 5.5s var(--ease-io) infinite;
+  will-change: transform;
   pointer-events: none;
   mix-blend-mode: screen;
   opacity: 0.65;
@@ -546,11 +551,12 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   display: grid; gap: 0.3rem;
   padding: 0.85rem 1rem;
   border-radius: var(--r-md);
-  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  /* no backdrop-filter here: it sits inside the tilting preserve-3d card, so
+     the backdrop would have to be re-blurred on every tracking frame */
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
   border: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 0.72rem;
-  backdrop-filter: blur(8px);
   transform: translateZ(24px);
 }
 .meta-row { display: flex; justify-content: space-between; gap: 1rem; }
@@ -580,10 +586,11 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   padding: 0.45rem 0.85rem;
   font-size: 0.76rem; font-weight: 600;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-soft) 88%, transparent);
+  background: color-mix(in srgb, var(--bg-soft) 94%, transparent);
   border: 1px solid var(--border-s);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(14px);
+  /* no backdrop-filter: these three chips live inside the tilting card and
+     would force a backdrop re-blur on every tracking frame */
   white-space: nowrap;
   animation: bob 5.5s var(--ease-io) infinite;
 }
@@ -913,8 +920,10 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 .cursor-aura {
   position: fixed; top: 0; left: 0; z-index: 9998; pointer-events: none;
   width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent), transparent 70%);
-  opacity: 0.28; filter: blur(24px);
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 38%, transparent), transparent 72%);
+  opacity: 0.26;
+  /* the gradient is already soft — a blur filter here would only add a
+     per-frame re-raster for an element that moves on every mousemove */
   transition: opacity 0.45s var(--ease-io), width 0.45s var(--ease-out),
               height 0.45s var(--ease-out), margin 0.45s var(--ease-out),
               background 0.45s var(--ease-io);
@@ -922,8 +931,8 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
 }
 .cursor-aura.is-hover {
   width: 200px; height: 200px; margin: -100px 0 0 -100px;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 55%, transparent), transparent 70%);
-  opacity: 0.6;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent-2) 46%, transparent), transparent 72%);
+  opacity: 0.55;
 }
 .cursor-aura.is-hidden { opacity: 0; }
 @media (hover: none), (pointer: coarse) { .cursor, .cursor-aura { display: none; } }
@@ -1408,8 +1417,7 @@ code { font-family: var(--font-mono); font-size: 0.86em; }
   transform: translateX(6px);
 }
 
-/* ── P. AURORA HUE DRIFT + HERO DEPTH EXIT ── */
-.aurora { filter: blur(90px) hue-rotate(var(--hue, 0deg)); }
+/* ── P. AURORA SCROLL DRIFT + HERO DEPTH EXIT ── */
 .hero__visual { scale: var(--heroScale, 1); }
 
 /* Reduced-motion fallbacks disabled — motion is always on by design. */
