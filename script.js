@@ -82,13 +82,15 @@
     const el = $('#cursor');
     if (!el || COARSE || REDUCED) return;
     const ring = $('.cursor__ring', el);
+    const dot  = $('.cursor__dot', el);
     const aura = $('#cursorAura');
     const glow = $('#cursorGlow');
     document.documentElement.classList.add('has-cursor');
 
     let tx = innerWidth / 2, ty = innerHeight / 2;
-    let rx = tx, ry = ty;          // ring (light lag)
-    let ax = tx, ay = ty;          // aura (heavy lag)
+    let rx = tx, ry = ty;          // ring  (light lag)
+    let dx = tx, dy = ty;          // dot   (tight follow)
+    let ax = tx, ay = ty;          // aura  (heavy lag)
     let lx = rx, ly = ry;          // previous ring position, for velocity
 
     const hoverIn  = () => { el.classList.add('is-hover');  aura?.classList.add('is-hover');  glow?.classList.add('is-hover'); };
@@ -125,11 +127,25 @@
       n.addEventListener('pointerleave', () => { el.classList.remove('is-text'); glow?.classList.remove('is-hover'); });
     });
 
+    // frame-rate independent damping (exponential) so the feel is identical
+    // on 60Hz, 120Hz and high-refresh displays
+    let prev = performance.now();
     Util.loop(() => {
-      rx = lerp(rx, tx, 0.2);
-      ry = lerp(ry, ty, 0.2);
-      ax = lerp(ax, tx, 0.11);
-      ay = lerp(ay, ty, 0.11);
+      const now = performance.now();
+      const dt = Math.min((now - prev) / 1000, 0.05);
+      prev = now;
+
+      const kRing  = 1 - Math.exp(-16 * dt);
+      const kDot   = 1 - Math.exp(-38 * dt);
+      const kAura  = 1 - Math.exp(-9  * dt);
+      const kTrail = 1 - Math.exp(-22 * dt);
+
+      rx = lerp(rx, tx, kRing);
+      ry = lerp(ry, ty, kRing);
+      dx = lerp(dx, tx, kDot);
+      dy = lerp(dy, ty, kDot);
+      ax = lerp(ax, tx, kAura);
+      ay = lerp(ay, ty, kAura);
 
       // stretch the ring a touch with speed so fast moves feel alive
       const speed = Math.hypot(rx - lx, ry - ly);
@@ -137,16 +153,17 @@
       const stretch = 1 + Math.min(speed * 0.008, 0.22);
 
       ring.style.transform = `translate3d(${rx.toFixed(2)}px, ${ry.toFixed(2)}px, 0) scale(${stretch.toFixed(3)})`;
+      if (dot)  dot.style.transform  = `translate3d(${dx.toFixed(2)}px, ${dy.toFixed(2)}px, 0)`;
       if (aura) aura.style.transform = `translate3d(${ax.toFixed(2)}px, ${ay.toFixed(2)}px, 0)`;
       if (glow) {
-        glow.style.setProperty('--mx', `${rx.toFixed(1)}px`);
-        glow.style.setProperty('--my', `${ry.toFixed(1)}px`);
+        glow.style.setProperty('--gx', `${rx.toFixed(1)}px`);
+        glow.style.setProperty('--gy', `${ry.toFixed(1)}px`);
       }
 
       let px = rx, py = ry;
       for (const t of trail) {
-        t.x = lerp(t.x, px, 0.34);
-        t.y = lerp(t.y, py, 0.34);
+        t.x = lerp(t.x, px, kTrail);
+        t.y = lerp(t.y, py, kTrail);
         t.el.style.transform = `translate3d(${t.x.toFixed(2)}px, ${t.y.toFixed(2)}px, 0)`;
         px = t.x; py = t.y;
       }
@@ -155,8 +172,8 @@
 
   /* ═══ 4. HERO — CURSOR-TRACKING 3D ═══
      Delta is measured against the viewport centre, then mapped to
-     rotation, perspective depth and gaze offsets. Everything is
-     interpolated so the card glides instead of snapping.        */
+     rotation and perspective depth. Damping is delta-time based, so
+     the card glides identically on any refresh rate.            */
   const Hero3D = (() => {
     const stage  = $('#heroStage');
     const card   = $('#card3d');
@@ -172,10 +189,15 @@
     // targets (from pointer) and current (interpolated) state
     const T = { x: 0, y: 0, s: 1 };
     const C = { x: 0, y: 0, s: 1 };
-    const G = { x: 0, y: 0 };   // gaze
-    const GC = { x: 0, y: 0 };
 
-    const cfg = { rotMax: 13, gazeMax: 11, tiltFar: 26 };
+    const cfg = { rotMax: 13, tiltFar: 26 };
+
+    // cache the card box; re-measure on layout changes instead of on every
+    // pointermove (which would force a synchronous reflow per event)
+    let rect = card.getBoundingClientRect();
+    const measure = () => { rect = card.getBoundingClientRect(); };
+    addEventListener('resize', measure, { passive: true });
+    addEventListener('scroll', measure, { passive: true });
 
     function onMove(e) {
       // delta relative to viewport centre, normalised to -1 … 1
@@ -183,9 +205,10 @@
       T.y = (e.clientY / innerHeight - 0.5) * 2;
 
       // local pointer coords for the light sweep
-      const r = card.getBoundingClientRect();
-      card.style.setProperty('--px', `${((e.clientX - r.left) / r.width) * 100}%`);
-      card.style.setProperty('--py', `${((e.clientY - r.top)  / r.height) * 100}%`);
+      if (rect.width && rect.height) {
+        card.style.setProperty('--px', `${((e.clientX - rect.left) / rect.width) * 100}%`);
+        card.style.setProperty('--py', `${((e.clientY - rect.top)  / rect.height) * 100}%`);
+      }
 
       // scale up slightly while the pointer is over the stage
       T.s = 1.028;
@@ -206,15 +229,20 @@
       z: parseFloat(n.dataset.z || '0'),
     }));
 
+    // frame-rate independent damping so the tilt feels the same at any refresh rate
+    let prev = performance.now();
+    let lastRead = '';
     Util.loop(() => {
-      C.x = lerp(C.x, T.x, 0.085);
-      C.y = lerp(C.y, T.y, 0.085);
-      C.s = lerp(C.s, T.s, 0.08);
+      const now = performance.now();
+      const dt = Math.min((now - prev) / 1000, 0.05);
+      prev = now;
 
-      GC.x = lerp(GC.x, G.x, 0.14);
-      GC.y = lerp(GC.y, G.y, 0.14);
-      G.x = clamp(C.x, -1, 1);
-      G.y = clamp(C.y, -1, 1);
+      const kTilt = 1 - Math.exp(-9 * dt);
+      const kZoom = 1 - Math.exp(-7 * dt);
+
+      C.x = lerp(C.x, T.x, kTilt);
+      C.y = lerp(C.y, T.y, kTilt);
+      C.s = lerp(C.s, T.s, kZoom);
 
       const rx =  clamp(-C.y * cfg.rotMax, -cfg.rotMax, cfg.rotMax);
       const ry =  clamp( C.x * cfg.rotMax, -cfg.rotMax, cfg.rotMax);
@@ -226,14 +254,6 @@
         `perspective(1000px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) ` +
         `scale3d(${depth.toFixed(4)}, ${depth.toFixed(4)}, ${depth.toFixed(4)})`;
 
-      // gaze: eyes + head drift
-      const gx = GC.x * cfg.gazeMax;
-      const gy = GC.y * cfg.gazeMax;
-      card.style.setProperty('--gx', `${gx.toFixed(2)}px`);
-      card.style.setProperty('--gy', `${gy.toFixed(2)}px`);
-      card.style.setProperty('--gaze-x', `${(-gy * 0.7).toFixed(2)}deg`);
-      card.style.setProperty('--gaze-y', `${(gx * 0.7).toFixed(2)}deg`);
-
       // parallax layers translate along their own depth coefficient
       layers.forEach(({ el, k, z }) => {
         el.style.transform =
@@ -242,11 +262,15 @@
           `${(z + dz * 90 * k).toFixed(2)}px)`;
       });
 
-      // live readouts
-      if (out.xy) out.xy.textContent = `${C.x.toFixed(2)}, ${C.y.toFixed(2)}`;
-      if (out.rx) out.rx.textContent = `${rx.toFixed(1)}°`;
-      if (out.ry) out.ry.textContent = `${ry.toFixed(1)}°`;
-      if (out.dz) out.dz.textContent = dz.toFixed(2);
+      // live readouts — only touch the DOM when the text actually changes
+      const read = `${C.x.toFixed(2)}${C.y.toFixed(2)}${rx.toFixed(1)}${ry.toFixed(1)}${dz.toFixed(2)}`;
+      if (read !== lastRead) {
+        lastRead = read;
+        if (out.xy) out.xy.textContent = `${C.x.toFixed(2)}, ${C.y.toFixed(2)}`;
+        if (out.rx) out.rx.textContent = `${rx.toFixed(1)}°`;
+        if (out.ry) out.ry.textContent = `${ry.toFixed(1)}°`;
+        if (out.dz) out.dz.textContent = dz.toFixed(2);
+      }
     });
 
     // idle float when nobody is moving the mouse
@@ -289,10 +313,17 @@
     }
 
     const t0 = performance.now();
+    let prev = t0;
     Util.loop(() => {
-      const t = (performance.now() - t0) / 1000;
-      PC.x = lerp(PC.x, P.x, 0.06);
-      PC.y = lerp(PC.y, P.y, 0.06);
+      const now = performance.now();
+      const dt = Math.min((now - prev) / 1000, 0.05);
+      prev = now;
+      const t = (now - t0) / 1000;
+
+      // delta-time damping so the in-frame parallax tracks smoothly
+      const k = 1 - Math.exp(-8 * dt);
+      PC.x = lerp(PC.x, P.x, k);
+      PC.y = lerp(PC.y, P.y, k);
       canvas.style.setProperty('--cx', `${(PC.x * -8).toFixed(2)}px`);
       canvas.style.setProperty('--cy', `${(PC.y * -8).toFixed(2)}px`);
 
