@@ -160,7 +160,6 @@
   const Hero3D = (() => {
     const stage  = $('#heroStage');
     const card   = $('#card3d');
-    const face   = $('#avatarFace');
     if (!stage || !card) return;
 
     const out = {
@@ -257,41 +256,57 @@
     }
   })();
 
-  /* ═══ 4B. NAME LOGO — 3D EXTRUSION ═══
-     Clones the monogram SVG into a stack of translateZ layers to build
-     a real extruded 3D badge (lit darker toward the back), then tilts
-     the stack toward the pointer with a slow idle drift.          */
-  const Logo3D = (() => {
-    const stage = $('#logo3d');
-    const front = $('.logo3d__layer--front', stage || document);
-    if (!stage || !front) return;
+  /* ═══ 4B. CHARACTER LOOP — canvas frame animation ═══
+     Pre-extracted WebP frames drawn on a canvas as a seamless
+     ping-pong idle loop. No <video>, no seeking, no play().      */
+  const CharLoop = (() => {
+    const canvas = $('#charCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
-    const LAYERS = 12;
-    for (let i = 1; i <= LAYERS; i++) {
-      const c = front.cloneNode(true);
-      c.classList.remove('logo3d__layer--front');
-      c.classList.add('logo3d__layer--extrude');
-      c.style.setProperty('--i', i);
-      stage.insertBefore(c, stage.firstChild);
+    const COUNT = 120;          // must match tools/extract_frames.py
+    const FPS   = 24;           // playback rate of the source frames
+    const DIR   = 'public/frames/';
+
+    const IMGS = [];
+    let lastIdx = -1;
+
+    for (let i = 0; i < COUNT; i++) {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = `${DIR}frame_${String(i).padStart(3, '0')}.webp`;
+      IMGS.push(img);
     }
 
-    const T = { x: 0, y: 0 }, C = { x: 0, y: 0 };
+    // soft cursor parallax inside the frame
+    const P = { x: 0, y: 0 }, PC = { x: 0, y: 0 };
     if (!COARSE) {
       addEventListener('pointermove', e => {
-        T.x = (e.clientX / innerWidth  - 0.5) * 2;
-        T.y = (e.clientY / innerHeight - 0.5) * 2;
+        P.x = (e.clientX / innerWidth  - 0.5) * 2;
+        P.y = (e.clientY / innerHeight - 0.5) * 2;
       }, { passive: true });
-      document.addEventListener('mouseleave', () => { T.x = 0; T.y = 0; });
+      document.addEventListener('mouseleave', () => { P.x = 0; P.y = 0; });
     }
 
     const t0 = performance.now();
     Util.loop(() => {
       const t = (performance.now() - t0) / 1000;
-      C.x = lerp(C.x, T.x, 0.08);
-      C.y = lerp(C.y, T.y, 0.08);
-      const ry = C.x * 30 + Math.sin(t * 0.55) * 10;   // idle sway
-      const rx = -C.y * 24 + Math.cos(t * 0.45) * 6;
-      stage.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+      PC.x = lerp(PC.x, P.x, 0.06);
+      PC.y = lerp(PC.y, P.y, 0.06);
+      canvas.style.setProperty('--cx', `${(PC.x * -8).toFixed(2)}px`);
+      canvas.style.setProperty('--cy', `${(PC.y * -8).toFixed(2)}px`);
+
+      const cycle = COUNT / FPS;                  // seconds, one direction
+      const phase = (t % (cycle * 2)) / cycle;    // 0 … 1 … 0
+      const fwd   = phase <= 1 ? phase : 2 - phase;
+      const idx   = Math.min(COUNT - 1, Math.floor(fwd * (COUNT - 1)));
+
+      if (idx === lastIdx) return;
+      const img = IMGS[idx];
+      if (img && img.complete && img.naturalWidth) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        lastIdx = idx;
+      }
     });
   })();
 
