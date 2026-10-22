@@ -282,150 +282,41 @@
     }
   })();
 
-  /* ═══ 4B. CHARACTER LOOP — canvas frame animation ═══
-     Pre-extracted WebP frames drawn on a canvas as a seamless
-     ping-pong idle loop. No <video>, no seeking, no play().      */
-  const CharLoop = (() => {
-    const canvas = $('#charCanvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+  /* ═══ 4B. HERO PORTRAIT — static image with cursor parallax ═══
+     A still, nudged a few pixels against the pointer so the hero still
+     feels responsive without shipping a clip or a frame loop.        */
+  const Portrait = (() => {
+    const img = $('#charImage');
+    if (!img) return;
 
-    const COUNT = 120;          // must match tools/extract_frames.py
-    const FPS   = 24;           // playback rate of the source frames
-    const DIR   = 'public/frames/';
+    if (COARSE) return;                       // no hover on touch: no parallax
 
-    const IMGS = [];
-    let lastIdx = -1;
+    const P = { x: 0, y: 0 };                 // target, -1 … 1
+    const C = { x: 0, y: 0 };                 // damped current
+    let wx = 0, wy = 0;                       // last written value
 
-    for (let i = 0; i < COUNT; i++) {
-      const img = new Image();
-      img.decoding = 'async';
-      img.src = `${DIR}frame_${String(i).padStart(3, '0')}.webp`;
-      IMGS.push(img);
-    }
+    addEventListener('pointermove', e => {
+      P.x = (e.clientX / innerWidth  - 0.5) * 2;
+      P.y = (e.clientY / innerHeight - 0.5) * 2;
+    }, { passive: true });
+    document.addEventListener('mouseleave', () => { P.x = 0; P.y = 0; });
 
-    // soft cursor parallax inside the frame
-    const P = { x: 0, y: 0 }, PC = { x: 0, y: 0 };
-    if (!COARSE) {
-      addEventListener('pointermove', e => {
-        P.x = (e.clientX / innerWidth  - 0.5) * 2;
-        P.y = (e.clientY / innerHeight - 0.5) * 2;
-      }, { passive: true });
-      document.addEventListener('mouseleave', () => { P.x = 0; P.y = 0; });
-    }
-
-    /* ── gaze: eyes that track the pointer ──────────────────────────
-       The source clip is a fixed idle loop, so the eyes are painted over
-       each frame. Geometry is URL-tunable so it can be dialled in without
-       touching any code:
-         ?eyes=0              turn the overlay off
-         ?ecx=212&ecy=143     eye-line centre, in 420x420 frame space
-         ?esep=46             distance between the two eyes
-         ?erx=14&ery=9        eye half-width / half-height
-         ?eiris=0.46          how far the iris may travel, as a fraction
-         ?eop=0.92            overlay opacity
-         ?eyedebug=1          outline the sockets for alignment           */
-    const qp   = new URLSearchParams(location.search);
-    const qnum = (k, d) => { const v = parseFloat(qp.get(k)); return Number.isFinite(v) ? v : d; };
-    const EYE = {
-      on:    qp.get('eyes') !== '0',
-      cx:    qnum('ecx', 212),
-      cy:    qnum('ecy', 143),
-      sep:   qnum('esep', 46),
-      rx:    qnum('erx', 14),
-      ry:    qnum('ery', 9),
-      iris:  qnum('eiris', 0.46),
-      op:    qnum('eop', 0.92),
-      debug: qp.get('eyedebug') === '1',
-    };
-
-    function drawEyes(gx, gy) {
-      const half = EYE.sep / 2;
-      const ir   = Math.min(EYE.rx, EYE.ry) * 0.94;
-
-      for (const s of [-1, 1]) {
-        const ex = EYE.cx + s * half;
-        const ey = EYE.cy;
-        const ix = ex + gx * EYE.rx * EYE.iris;
-        const iy = ey + gy * EYE.ry * EYE.iris;
-
-        ctx.save();
-        ctx.globalAlpha = EYE.op;
-
-        // socket — grounds the eye and covers the render's own eye beneath it
-        ctx.beginPath();
-        ctx.ellipse(ex, ey, EYE.rx, EYE.ry, 0, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(22, 15, 13, 0.93)';
-        ctx.fill();
-
-        // clip to the opening so nothing spills onto the cheek
-        ctx.beginPath();
-        ctx.ellipse(ex, ey, EYE.rx * 0.95, EYE.ry * 0.95, 0, 0, Math.PI * 2);
-        ctx.clip();
-
-        // iris
-        const grd = ctx.createRadialGradient(ix, iy, ir * 0.12, ix, iy, ir);
-        grd.addColorStop(0,    'rgba(64, 42, 32, 1)');
-        grd.addColorStop(0.55, 'rgba(28, 17, 14, 1)');
-        grd.addColorStop(1,    'rgba(8, 5, 5, 1)');
-        ctx.fillStyle = grd;
-        ctx.fillRect(ex - EYE.rx, ey - EYE.ry, EYE.rx * 2, EYE.ry * 2);
-
-        // catchlight — the thing that makes a CG eye read as alive
-        ctx.beginPath();
-        ctx.ellipse(ix - ir * 0.32, iy - ir * 0.36, ir * 0.25, ir * 0.2, 0, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 252, 246, 0.92)';
-        ctx.fill();
-
-        ctx.restore();
-
-        if (EYE.debug) {
-          ctx.save();
-          ctx.strokeStyle = 'rgba(110, 168, 255, 0.95)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.ellipse(ex, ey, EYE.rx, EYE.ry, 0, 0, Math.PI * 2);
-          ctx.stroke();
-          ctx.restore();
-        }
-      }
-    }
-
-    const t0 = performance.now();
-    let prev = t0;
-    const G = { x: 0, y: 0 };
+    let prev = performance.now();
     Util.loop(() => {
       const now = performance.now();
-      const dt = Math.min((now - prev) / 1000, 0.05);
+      const dt  = Math.min((now - prev) / 1000, 0.05);
       prev = now;
-      const t = (now - t0) / 1000;
 
-      // delta-time damping so the in-frame parallax tracks smoothly
       const k = 1 - Math.exp(-8 * dt);
-      PC.x = lerp(PC.x, P.x, k);
-      PC.y = lerp(PC.y, P.y, k);
-      canvas.style.setProperty('--cx', `${(PC.x * -8).toFixed(2)}px`);
-      canvas.style.setProperty('--cy', `${(PC.y * -8).toFixed(2)}px`);
+      C.x = lerp(C.x, P.x, k);
+      C.y = lerp(C.y, P.y, k);
 
-      // the gaze is quicker than the body parallax so the eyes feel locked on
-      const kg = 1 - Math.exp(-16 * dt);
-      G.x = lerp(G.x, P.x, kg);
-      G.y = lerp(G.y, P.y, kg);
-
-      const cycle = COUNT / FPS;                  // seconds, one direction
-      const phase = (t % (cycle * 2)) / cycle;    // 0 … 1 … 0
-      const fwd   = phase <= 1 ? phase : 2 - phase;
-      const idx   = Math.min(COUNT - 1, Math.floor(fwd * (COUNT - 1)));
-
-      // with eyes on we repaint every frame, since the gaze moves even
-      // while the source frame is held
-      if (idx === lastIdx && !EYE.on) return;
-      const img = IMGS[idx];
-      if (img && img.complete && img.naturalWidth) {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        lastIdx = idx;
-      }
-      if (EYE.on) drawEyes(G.x, G.y);
+      // only touch style when the value actually moved, so an idle
+      // pointer does not invalidate style every frame
+      if (Math.abs(C.x - wx) < 0.002 && Math.abs(C.y - wy) < 0.002) return;
+      wx = C.x; wy = C.y;
+      img.style.setProperty('--cx', `${(C.x * -8).toFixed(2)}px`);
+      img.style.setProperty('--cy', `${(C.y * -8).toFixed(2)}px`);
     });
   })();
 
